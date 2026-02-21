@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Temperature Checker</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        min-height: 100vh;
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 24px;
+        padding: 40px;
+        width: 100%;
+        max-width: 480px;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 24px;
+        text-align: center;
+        opacity: 0.9;
+      }
+      .search-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 28px;
+      }
+      input {
+        flex: 1;
+        padding: 14px 18px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+      }
+      input:focus {
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+      button {
+        padding: 14px 24px;
+        border-radius: 14px;
+        border: none;
+        background: #e94560;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          transform 0.1s;
+      }
+      button:hover {
+        background: #d63851;
+      }
+      button:active {
+        transform: scale(0.97);
+      }
+      .result {
+        display: none;
+        text-align: center;
+      }
+      .city-name {
+        font-size: 1.1rem;
+        opacity: 0.7;
+        margin-bottom: 4px;
+      }
+      .current-temp {
+        font-size: 4rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .range {
+        font-size: 0.95rem;
+        opacity: 0.5;
+        margin-bottom: 24px;
+      }
+      .hours {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 8px 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
+      .hour {
+        flex-shrink: 0;
+        text-align: center;
+        padding: 10px 8px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        min-width: 56px;
+        font-size: 0.8rem;
+      }
+      .hour .t {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-top: 4px;
+      }
+      .hour .time {
+        opacity: 0.5;
+      }
+      .now {
+        background: rgba(233, 69, 96, 0.25) !important;
+        border: 1px solid rgba(233, 69, 96, 0.4);
+      }
+      .loading {
+        text-align: center;
+        display: none;
+        opacity: 0.5;
+        padding: 20px;
+      }
+      .error {
+        text-align: center;
+        display: none;
+        color: #e94560;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>🌡️ Temperature Check</h1>
+      <div class="search-row">
+        <input type="text" id="city" placeholder="Enter city name..." />
+        <button onclick="fetchWeather()">Go</button>
+      </div>
+      <div class="loading" id="loading">Loading...</div>
+      <div class="error" id="error"></div>
+      <div class="result" id="result">
+        <div class="city-name" id="cityName"></div>
+        <div class="current-temp" id="currentTemp"></div>
+        <div class="range" id="range"></div>
+        <div class="hours" id="hours"></div>
+      </div>
+    </div>
+    <script>
+      const input = document.getElementById("city");
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") fetchWeather();
+      });
+
+      async function fetchWeather() {
+        const city = input.value.trim();
+        if (!city) return;
+        const loading = document.getElementById("loading");
+        const error = document.getElementById("error");
+        const result = document.getElementById("result");
+        loading.style.display = "block";
+        error.style.display = "none";
+        result.style.display = "none";
+
+        try {
+          const res = await fetch(
+            `https://marconius.app.n8n.cloud/webhook/f455e443-5f2c-4591-abbf-3c74ebb2151d?checkCity=${encodeURIComponent(city)}`,
+          );
+          const data = await res.json();
+          if (!data.length) throw new Error("No data returned");
+
+          const temps = data.map((d) => d.Temperature);
+          const min = Math.min(...temps);
+          const max = Math.max(...temps);
+          const nowHour = new Date().getHours();
+          const currentEntry =
+            data.find((d) => new Date(d.Time).getHours() === nowHour) ||
+            data[0];
+
+          document.getElementById("cityName").textContent = city;
+          document.getElementById("currentTemp").textContent =
+            `${currentEntry.Temperature}°C`;
+          document.getElementById("range").textContent =
+            `Low ${min}° · High ${max}°`;
+
+          const hoursEl = document.getElementById("hours");
+          hoursEl.innerHTML = data
+            .map((d) => {
+              const h = new Date(d.Time).getHours();
+              const isNow = h === nowHour;
+              return `<div class="hour ${isNow ? "now" : ""}">
+                <div class="time">${String(h).padStart(2, "0")}:00</div>
+                <div class="t">${d.Temperature}°</div>
+              </div>`;
+            })
+            .join("");
+
+          loading.style.display = "none";
+          result.style.display = "block";
+        } catch (e) {
+          loading.style.display = "none";
+          error.style.display = "block";
+          error.textContent = "Could not fetch weather. Try again.";
+        }
+      }
+    </script>
+  </body>
+</html>
